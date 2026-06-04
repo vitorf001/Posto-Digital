@@ -1,0 +1,42 @@
+{
+  "expo": {
+    "name": "Posto Digital",
+    "slug": "posto-digital",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
+      },
+      "package": "com.postodigital.app"
+    },
+    "plugins": [
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Permitir que o Posto Digital acesse sua localização."
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/icon.png",
+          "color": "#f4a500"
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "041050d3-ddde-47de-959e-526fdf36c356"
+      }
+    }
+  }
+}
