@@ -24,14 +24,8 @@
         {
           "locationAlwaysAndWhenInUsePermission": "Permitir que o Posto Digital acesse sua localização."
         }
-      ],
-      [
-        "expo-notifications",
-        {
-          "icon": "./assets/icon.png",
-          "color": "#f4a500"
-        }
       ]
+      
     ],
     "extra": {
       "eas": {
@@ -40,3 +34,5 @@
     }
   }
 }
+
+ 
