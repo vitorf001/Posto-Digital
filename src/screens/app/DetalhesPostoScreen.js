@@ -1,5 +1,5 @@
 import React from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Linking, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 import { AppButton } from '../../components/AppButton';
@@ -9,9 +9,83 @@ import { useTheme } from '../../hooks/useTheme';
 
 export function DetalhesPostoScreen({ route }) {
   const { posto } = route.params;
+
   const globalStyles = useGlobalStyles();
   const { colors } = useTheme();
   const styles = createStyles(colors);
+
+  function temCoordenadas() {
+    return (
+      posto?.latitude !== null &&
+      posto?.latitude !== undefined &&
+      posto?.longitude !== null &&
+      posto?.longitude !== undefined
+    );
+  }
+
+  async function abrirNoMapa() {
+    if (!temCoordenadas()) {
+      Alert.alert('Localização indisponível', 'Este posto não possui latitude e longitude cadastradas.');
+      return;
+    }
+
+    const latitude = Number(posto.latitude);
+    const longitude = Number(posto.longitude);
+
+    if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+      Alert.alert('Localização inválida', 'As coordenadas deste posto são inválidas.');
+      return;
+    }
+
+    const label = encodeURIComponent(posto.nome || 'Posto');
+
+    const url = Platform.select({
+      ios: `maps://?q=${label}&ll=${latitude},${longitude}`,
+      android: `geo:${latitude},${longitude}?q=${latitude},${longitude}(${label})`,
+      default: `https://www.google.com/maps/search/?api=1&query=${latitude},${longitude}`,
+    });
+
+    await abrirUrl(url);
+  }
+
+  async function comoChegar() {
+    if (!temCoordenadas()) {
+      Alert.alert('Localização indisponível', 'Este posto não possui latitude e longitude cadastradas.');
+      return;
+    }
+
+    const latitude = Number(posto.latitude);
+    const longitude = Number(posto.longitude);
+
+    if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+      Alert.alert('Localização inválida', 'As coordenadas deste posto são inválidas.');
+      return;
+    }
+
+    const url = Platform.select({
+      ios: `maps://?daddr=${latitude},${longitude}`,
+      android: `google.navigation:q=${latitude},${longitude}`,
+      default: `https://www.google.com/maps/dir/?api=1&destination=${latitude},${longitude}`,
+    });
+
+    await abrirUrl(url);
+  }
+
+  async function abrirUrl(url) {
+    try {
+      const podeAbrir = await Linking.canOpenURL(url);
+
+      if (podeAbrir) {
+        await Linking.openURL(url);
+        return;
+      }
+
+      const fallbackUrl = `https://www.google.com/maps/search/?api=1&query=${posto.latitude},${posto.longitude}`;
+      await Linking.openURL(fallbackUrl);
+    } catch (error) {
+      Alert.alert('Erro', 'Não foi possível abrir o aplicativo de mapa.');
+    }
+  }
 
   return (
     <ScrollView
@@ -25,9 +99,14 @@ export function DetalhesPostoScreen({ route }) {
       />
 
       <View style={styles.statusCard}>
-        <Ionicons name="checkmark-circle-outline" size={24} color={colors.success} />
-        <Text style={styles.statusText}>
-          {posto.status === 'aprovado' ? 'Posto verificado' : `Status: ${posto.status}`}
+        <Ionicons
+          name={getStatusIcon(posto.status)}
+          size={24}
+          color={getStatusColor(posto.status, colors)}
+        />
+
+        <Text style={[styles.statusText, { color: getStatusColor(posto.status, colors) }]}>
+          {getStatusLabel(posto.status)}
         </Text>
       </View>
 
@@ -59,14 +138,7 @@ export function DetalhesPostoScreen({ route }) {
         <InfoItem
           icon="location-outline"
           label="Endereço"
-          value={posto.endereco}
-          colors={colors}
-        />
-
-        <InfoItem
-          icon="navigate-outline"
-          label="Distância"
-          value={posto.distancia ? `${posto.distancia} km de você` : 'Não informada'}
+          value={posto.endereco || 'Não informado'}
           colors={colors}
         />
 
@@ -74,7 +146,7 @@ export function DetalhesPostoScreen({ route }) {
           icon="map-outline"
           label="Coordenadas"
           value={
-            posto.latitude && posto.longitude
+            temCoordenadas()
               ? `${posto.latitude}, ${posto.longitude}`
               : 'Não informadas'
           }
@@ -89,17 +161,35 @@ export function DetalhesPostoScreen({ route }) {
             colors={colors}
           />
         ) : null}
+
+        {posto.operador ? (
+          <InfoItem
+            icon="business-outline"
+            label="Origem/Operador"
+            value={posto.operador}
+            colors={colors}
+          />
+        ) : null}
+
+        {posto.horario ? (
+          <InfoItem
+            icon="time-outline"
+            label="Horário"
+            value={posto.horario}
+            colors={colors}
+          />
+        ) : null}
       </View>
 
       <AppButton
         title="Abrir no mapa"
-        onPress={() => {}}
+        onPress={abrirNoMapa}
       />
 
       <AppButton
         title="Como chegar"
         variant="outline"
-        onPress={() => {}}
+        onPress={comoChegar}
       />
     </ScrollView>
   );
@@ -139,6 +229,62 @@ function InfoItem({ icon, label, value, colors }) {
   );
 }
 
+function getStatusLabel(status) {
+  if (status === 'aprovado') {
+    return 'Posto verificado';
+  }
+
+  if (status === 'openstreetmap') {
+    return 'Encontrado no OpenStreetMap';
+  }
+
+  if (status === 'google') {
+    return 'Encontrado no Google';
+  }
+
+  if (status === 'pendente') {
+    return 'Pendente de aprovação';
+  }
+
+  if (status === 'rejeitado') {
+    return 'Posto rejeitado';
+  }
+
+  return status ? `Status: ${status}` : 'Informação disponível';
+}
+
+function getStatusIcon(status) {
+  if (status === 'aprovado') {
+    return 'checkmark-circle-outline';
+  }
+
+  if (status === 'openstreetmap' || status === 'google') {
+    return 'map-outline';
+  }
+
+  if (status === 'rejeitado') {
+    return 'close-circle-outline';
+  }
+
+  return 'time-outline';
+}
+
+function getStatusColor(status, colors) {
+  if (status === 'aprovado') {
+    return colors.success;
+  }
+
+  if (status === 'rejeitado') {
+    return colors.danger;
+  }
+
+  if (status === 'openstreetmap' || status === 'google') {
+    return colors.warning;
+  }
+
+  return colors.primary;
+}
+
 function createStyles(colors) {
   return StyleSheet.create({
     content: {
@@ -160,8 +306,6 @@ function createStyles(colors) {
       marginLeft: 8,
       fontSize: 15,
       fontWeight: '700',
-      color: colors.success,
-      textTransform: 'capitalize',
     },
 
     section: {
